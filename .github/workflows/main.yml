@@ -87,7 +87,7 @@ jobs:
           cache-dependency-path: "**/package-lock.json"
       - name: install dependencies
         run: |
-          cd serve 
+          cd server 
           npm ci --prefer-offline
       - name: download build artefcat
         uses: actions/download-artifact@v4
