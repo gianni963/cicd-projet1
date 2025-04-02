@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        browser: ["chrome", "firefox"]
+        browser: ["chrome", "edge", "firefox"]
     steps:
       - name: checkout le code
         uses: actions/checkout@v4
@@ -157,7 +157,7 @@ jobs:
           working-directory: ./client
           browser: ${{ matrix.browser }}
           start: npm run preview
-          wait-on: http://localhost:4773
+          wait-on: http://localhost:4173
           wait-on-timeout: 60
           config: baseUrl=http://localhost:4173
 
