@@ -21,14 +21,23 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: ./server/package-lock.json
+
       - name: install dependencies
         run: npm ci --prefer-offline
+
       - name: vérifie le code
         run: npm run lint
+
       - name: vérifie les vulnérabilités des dépendances
         run: npm audit || true
+
       - name: exécute les test
         run: npm run test:ci
+
+      - name: Upload du rapport de couverture sur Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   check-tests-frontend:
     runs-on: ubuntu-latest
@@ -38,16 +47,20 @@ jobs:
     steps:
       - name: checkout le code
         uses: actions/checkout@v4
+
       - name: installer node.js
         uses: actions/setup-node@v3
         with:
           cache: "npm"
           cache-dependency-path: ./client/package-lock.json
+
       - name: install dependencies
         run: npm ci --prefer-offline
+
       - name: vérifie le code
         run: npm run lint
       - name: vérifie les vulnérabilités des dépendances
+
         run: npm audit || true
 
   build-frontend:
@@ -59,57 +72,104 @@ jobs:
     steps:
       - name: checkout le code
         uses: actions/checkout@v4
+
       - name: installer node.js
         uses: actions/setup-node@v3
         with:
           cache: "npm"
           cache-dependency-path: ./client/package-lock.json
+
       - name: install dependencies
         run: npm ci --prefer-offline
+
       - name: build frontend
         run: npm run build
+
       - name: upload build artefcat
         uses: actions/upload-artifact@v4
         with:
           name: build
           path: ./client/dist
 
-  test-e2e-frontend:
-    needs: build-frontend
+  build-e2e-frontend:
+    needs: check-tests-frontend
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
     steps:
       - name: checkout le code
         uses: actions/checkout@v4
+
       - name: installer node.js
         uses: actions/setup-node@v3
         with:
           cache: "npm"
+          cache-dependency-path: ./client/package-lock.json
+
+      - name: install dependencies
+        run: npm ci --prefer-offline
+
+      - name: build frontend
+        run: npm run build
+
+      - name: upload build artefcat
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: ./client/dist
+
+  test-e2e-frontend:
+    needs: build-e2e-frontend
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: ["chrome", "edge", "firefox"]
+    steps:
+      - name: checkout le code
+        uses: actions/checkout@v4
+
+      - name: installer node.js
+        uses: actions/setup-node@v3
+
+        with:
+          cache: "npm"
           cache-dependency-path: "**/package-lock.json"
+
+      - name: load e2e build
+        uses: actions/download-artifact@v4
+        with:
+          name: builde2e
+          path: ./client/dist
+
       - name: install dependencies
         run: |
           cd server 
           npm ci --prefer-offline
-      - name: download build artefcat
-        uses: actions/download-artifact@v4
-        with:
-          name: build
-          path: ./client/dist
+
       - name: start backend
         run: |
           cd server
           npm start &
-      - name: exec cypress
+
+      - name: cypress
         uses: cypress-io/github-action@v6
         with:
           working-directory: ./client
-          browser: chrome
+          browser: ${{ matrix.browser }}
           start: npm run preview
           wait-on: http://localhost:4773
           wait-on-timeout: 60
           config: baseUrl=http://localhost:4173
 
+      - name: Upload du rapport de couverture sur Codecov
+        if: matrix.browser == 'chrome' # pour ne pas uploader 3 fois le rapport
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   deploy:
-    needs: [check-tests-backend, test-e2e-frontend]
+    needs: [check-tests-backend, test-e2e-frontend, build-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
