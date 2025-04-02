@@ -116,7 +116,7 @@ jobs:
       - name: upload build artefcat
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-dist
+          name: frontend-dist-e2e
           path: ./client/dist
 
   test-e2e-frontend:
@@ -131,18 +131,17 @@ jobs:
 
       - name: installer node.js
         uses: actions/setup-node@v3
-
         with:
           cache: "npm"
-          cache-dependency-path: "**/package-lock.json"
+          cache-dependency-path: "server/package-lock.json"
 
-      - name: load e2e build
+      - name: artifact frontend for e2e build
         uses: actions/download-artifact@v4
         with:
-          name: builde2e
+          name: frontend-dist-e2e
           path: ./client/dist
 
-      - name: install dependencies
+      - name: install server dependencies
         run: |
           cd server 
           npm ci --prefer-offline
